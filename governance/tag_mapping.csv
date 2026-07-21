@@ -1,0 +1,14 @@
+ticker,metric_code,metric_label,xbrl_tag,role,notes,as_of_date
+FORM,revenue,Revenue (GAAP),RevenueFromContractWithCustomerExcludingAssessedTax,primary,ASC 606 tag; covers FY2018 onward for FORM,2026-07-21
+FORM,revenue,Revenue (GAAP),SalesRevenueNet,fallback_1,pre-ASC 606 tag used by FORM through FY2018 transition,2026-07-21
+FORM,revenue,Revenue (GAAP),Revenues,fallback_2,,2026-07-21
+FORM,gross_profit,Gross Profit (GAAP),GrossProfit,primary,,2026-07-21
+FORM,rnd_expense,R&D Expense (GAAP),ResearchAndDevelopmentExpense,primary,,2026-07-21
+FORM,sgna_expense,SG&A Expense (GAAP),SellingGeneralAndAdministrativeExpense,primary,,2026-07-21
+FORM,opex_total,Total Operating Expenses (GAAP),OperatingExpenses,primary,,2026-07-21
+FORM,operating_income,Operating Income (GAAP),OperatingIncomeLoss,primary,,2026-07-21
+FORM,net_income,Net Income (GAAP),NetIncomeLoss,primary,,2026-07-21
+FORM,eps_diluted,Diluted EPS (GAAP),EarningsPerShareDiluted,primary,,2026-07-21
+FORM,gross_margin_pct,Gross Margin % (GAAP),computed: gross_profit / revenue,computed,ratio computed from conformed GAAP metrics,2026-07-21
+FORM,opex_ratio_pct,Opex as % of Revenue (GAAP),computed: opex_total / revenue,computed,ratio computed from conformed GAAP metrics,2026-07-21
+FORM,operating_margin_pct,Operating Margin % (GAAP),computed: operating_income / revenue,computed,ratio computed from conformed GAAP metrics,2026-07-21
