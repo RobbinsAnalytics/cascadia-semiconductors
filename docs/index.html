@@ -90,6 +90,15 @@
       <li><strong>Divestiture gains.</strong> GAAP operating income includes gains on business sales that sit outside
         operating expenses: +$72.9M in FY2023 Q4 (FRT Metrology sale) and +$20.3M in FY2024 Q1 (China business sale).
         Those quarters' operating-income spikes are real GAAP results, not margin improvements.</li>
+      <li><strong>EPS anomalies (①②).</strong> Two quarters sit far outside FormFactor's usual ~$0.20–0.30 GAAP
+        diluted EPS; each is a verified one-time item, not a trend (the markers on the EPS chart tie to these notes).
+        <strong>① FY2018 Q4, $1.13</strong> — a one-time income-tax benefit from releasing $75.8M of the deferred-tax
+        valuation allowance (the allowance fell from $109.8M to $34.0M during FY2018); source:
+        FormFactor <em>FY2018 Form 10-K</em> (fiscal year ended Dec 29, 2018), income-tax note.
+        <strong>② FY2022 Q4, −$0.17</strong> — a GAAP operating loss: gross margin fell to 27.2% on larger-than-expected
+        year-end excess &amp; obsolete inventory charges, plus $8.4M of restructuring charges (program announced Oct 2022);
+        source: FormFactor <em>Q4 FY2022 earnings release</em> (Feb 8, 2023) and <em>FY2022 Form 10-K</em>
+        (fiscal year ended Dec 31, 2022). This Q4 is a derived value (‡); the company reported GAAP diluted EPS of −$0.18.</li>
       <li><strong>Fiscal calendar.</strong> FormFactor uses a 52/53-week fiscal year; each fiscal quarter is mapped
         to the calendar quarter whose end date is nearest (always within ~6 days). Rule documented in
         <a href="https://github.com/RobbinsAnalytics/cascadia-semiconductors/blob/main/governance/conformance_rules.md">conformance_rules.md</a>.</li>
@@ -276,7 +285,9 @@ document.getElementById("callouts").innerHTML = [
     {name: "SG&A", data: ratio(M.sgna_expense), color: s3},
   ];
   charts.push(mk("chart-opex", {...base,
-    grid: {...base.grid, top: 34, right: 64},
+    /* right reverts to base (14): the inline end-labels that needed the extra
+       64px of clearance are gone — see the series note below. */
+    grid: {...base.grid, top: 34},
     legend: {top: 0, right: 0, icon: "roundRect", itemWidth: 12, itemHeight: 8,
              textStyle: {color: ink2, fontSize: 11}},
     yAxis: {...base.yAxis, axisLabel: {...base.yAxis.axisLabel, formatter: v => v + "%"}},
@@ -286,23 +297,64 @@ document.getElementById("callouts").innerHTML = [
         ps.map(p => `${p.marker} ${p.seriesName} ${fmtPct(p.value)}`).join("<br>") +
         flagNote(M.opex_ratio_pct, i);
     }},
+    /* No inline endLabels. The three ratio lines converge in a narrow band, so
+       the "R&D" and "SG&A" end-of-line labels overlapped and were unreadable —
+       worst at phone width where the plot is narrowest. The legend (top-right)
+       already names every series by color + text, so the labels were redundant
+       as well as colliding; dropping them is the clean fix and reads cleanly at
+       both desktop and phone widths. Series identity is still text + color (not
+       color alone) via the legend, and the tooltip lists all three by name. */
     series: opexSeries.map(s => ({
       name: s.name, type: "line", data: s.data, showSymbol: false,
       lineStyle: {width: 2, color: s.color}, itemStyle: {color: s.color},
-      endLabel: {show: true, formatter: s.name, color: ink2, fontSize: 11, distance: 6},
     })),
   }));
 
-  /* Diluted EPS — bars from a zero baseline (values can go negative). */
+  /* Diluted EPS — bars from a zero baseline (values can go negative).
+     Two quarters sit far outside FormFactor's usual ~$0.20–0.30 GAAP range;
+     each is a verified one-time item, NOT a trend. We surface the cause three
+     ways so a finance director doesn't have to ask: a numbered ①/② marker on
+     the bar, the same note in that bar's tooltip, and a matching footnote in
+     "Data & method". Causes were confirmed against the SEC filings cited; the
+     frozen dataset is unchanged — these are annotations only. */
+  const surface = css("--surface") || "#fff";
+  const epsNotes = {
+    "2018Q4": {n: "①",  // ①
+      text: "One-time income-tax benefit — $75.8M release of the deferred-tax "
+          + "valuation allowance (FY2018 Form 10-K, year ended Dec 29 2018)."},
+    "2022Q4": {n: "②",  // ②
+      text: "GAAP operating loss — gross margin fell to 27.2% on year-end excess "
+          + "& obsolete inventory charges, plus $8.4M restructuring (Q4-2022 "
+          + "release; FY2022 Form 10-K, year ended Dec 31 2022)."},
+  };
   charts.push(mk("chart-eps", {...base,
     yAxis: {...base.yAxis, axisLabel: {...base.yAxis.axisLabel, formatter: v => "$" + v.toFixed(2)}},
     tooltip: {...base.tooltip, formatter: ps => {
       const i = ps[0].dataIndex;
+      const note = epsNotes[P[i]];
       return `<b>${fq(P[i])}</b><br>Diluted EPS ${fmtEps(M.eps_diluted.values[i])}` +
-             ` · ${signed(M.eps_diluted.yoy_delta[i], "", 2)} YoY${flagNote(M.eps_diluted, i)}`;
+             ` · ${signed(M.eps_diluted.yoy_delta[i], "", 2)} YoY${flagNote(M.eps_diluted, i)}` +
+             (note ? `<div style="max-width:230px;white-space:normal;color:${muted};` +
+                     `font-size:11px;margin-top:4px;">${note.n} ${note.text}</div>` : "");
     }},
     series: [{type: "bar", data: M.eps_diluted.values, barMaxWidth: 14,
-              itemStyle: {color: s1, borderRadius: [3, 3, 0, 0]}}],
+              itemStyle: {color: s1, borderRadius: [3, 3, 0, 0]},
+              /* Circled-number tags tie the two anomaly bars to the footnotes.
+                 Anchored at each bar's tip and nudged clear of it — up for the
+                 positive spike, down for the negative bar — so nothing overlaps
+                 the bar or the axis at any width. */
+              markPoint: {
+                symbol: "circle", symbolSize: 16, silent: true,
+                itemStyle: {color: surface, borderColor: s1, borderWidth: 1},
+                label: {color: ink2, fontSize: 11, fontWeight: 700,
+                        formatter: p => p.data.name},
+                data: Object.keys(epsNotes).map(per => {
+                  const i = P.indexOf(per);
+                  const v = M.eps_diluted.values[i];
+                  return {name: epsNotes[per].n, coord: [i, v],
+                          symbolOffset: [0, v >= 0 ? -15 : 15]};
+                }),
+              }}],
   }));
 
   /* ResizeObserver (not a window listener) so charts track their container
