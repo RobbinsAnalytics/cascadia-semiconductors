@@ -1,0 +1,126 @@
+/* ==========================================================================
+   Cascadia shared stylesheet — exec-pack look: light, restrained, generous
+   whitespace. Design tokens up top; every page in this module uses them.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+  /* surfaces & ink */
+  --page:        #f9f9f7;
+  --surface:     #fcfcfb;
+  --ink:         #0b0b0b;
+  --ink-2:       #52514e;
+  --muted:       #898781;
+  --grid:        #e1e0d9;
+  --baseline:    #c3c2b7;
+  --ring:        rgba(11, 11, 11, 0.10);
+  /* series (validated categorical order — do not re-order) */
+  --s1:          #2a78d6;   /* blue    */
+  --s2:          #008300;   /* green   */
+  --s3:          #e87ba4;   /* magenta — low contrast: always direct-labeled */
+  /* variance signals (never reused as series colors) */
+  --up-ink:      #006300;
+  --up-bg:       #e9f3e9;
+  --down-ink:    #b02f2f;
+  --down-bg:     #faecec;
+  --flat-ink:    #52514e;
+  --flat-bg:     #efeeea;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 48px; }
+
+/* ---- header ---- */
+.site-head { padding: 28px 0 4px; }
+.kicker {
+  font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 6px;
+}
+.kicker a { color: var(--muted); text-decoration: none; }
+.kicker a:hover { text-decoration: underline; }
+h1 { font-size: clamp(22px, 4.5vw, 30px); margin: 0 0 6px; font-weight: 650; }
+.subtitle { color: var(--ink-2); margin: 0 0 10px; max-width: 62ch; }
+.asof {
+  display: inline-block; font-size: 12.5px; color: var(--ink-2);
+  background: var(--surface); border: 1px solid var(--ring);
+  border-radius: 999px; padding: 4px 12px;
+}
+.asof strong { color: var(--ink); font-weight: 600; }
+
+/* ---- section headings ---- */
+h2 {
+  font-size: 17px; font-weight: 650; margin: 36px 0 4px;
+}
+.section-note { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+
+/* ---- KPI cards ---- */
+.kpi-grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+  margin-top: 14px;
+}
+.kpi {
+  background: var(--surface); border: 1px solid var(--ring);
+  border-radius: 10px; padding: 16px 18px 14px;
+}
+.kpi .label { font-size: 13px; color: var(--ink-2); margin: 0 0 2px; }
+.kpi .value { font-size: 28px; font-weight: 650; margin: 0; line-height: 1.2; }
+.kpi .value .unit { font-size: 15px; font-weight: 500; color: var(--ink-2); }
+.kpi .chips { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.kpi .foot { margin-top: 8px; font-size: 11.5px; color: var(--muted); }
+
+/* variance chips — arrow + signed text, color never the only signal */
+.chip {
+  display: inline-flex; align-items: baseline; gap: 4px;
+  font-size: 12px; font-weight: 600; border-radius: 6px; padding: 2px 8px;
+  font-variant-numeric: tabular-nums;
+}
+.chip .tag { font-weight: 500; opacity: 0.85; }
+.chip.up   { color: var(--up-ink);   background: var(--up-bg); }
+.chip.down { color: var(--down-ink); background: var(--down-bg); }
+.chip.flat { color: var(--flat-ink); background: var(--flat-bg); }
+
+/* ---- callouts ---- */
+.callouts { margin: 10px 0 0; padding: 0 0 0 1.2em; color: var(--ink-2); }
+.callouts li { margin: 6px 0; max-width: 78ch; }
+.callouts strong { color: var(--ink); font-weight: 600; }
+
+/* ---- charts ---- */
+.chart-grid {
+  display: grid; gap: 16px; grid-template-columns: 1fr 1fr; margin-top: 14px;
+}
+@media (max-width: 760px) { .chart-grid { grid-template-columns: 1fr; } }
+.chart-card {
+  background: var(--surface); border: 1px solid var(--ring);
+  border-radius: 10px; padding: 14px 12px 6px;
+}
+.chart-card h3 { font-size: 14px; font-weight: 650; margin: 0 0 0 8px; }
+.chart-card .chart-sub { font-size: 12px; color: var(--muted); margin: 1px 0 4px 8px; }
+.chart { width: 100%; height: 260px; }
+
+/* ---- data & method / footer ---- */
+.method {
+  background: var(--surface); border: 1px solid var(--ring);
+  border-radius: 10px; padding: 6px 22px 14px; margin-top: 14px;
+  font-size: 13.5px; color: var(--ink-2);
+}
+.method h2 { margin-top: 16px; }
+.method ul { padding-left: 1.2em; }
+.method li { margin: 7px 0; max-width: 88ch; }
+.method a { color: var(--s1); }
+.disclosure {
+  margin: 26px 0 0; padding-top: 16px; border-top: 1px solid var(--grid);
+  font-size: 12.5px; color: var(--muted); max-width: 88ch;
+}
+.fallback-note { color: var(--muted); font-size: 13px; padding: 12px 8px; }
