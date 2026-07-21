@@ -1,0 +1,17 @@
+{
+  "as_of_date": "2026-07-21",
+  "source": "SEC EDGAR XBRL APIs (https://data.sec.gov/)",
+  "user_agent": "RobbinsAnalytics cascadia-semiconductors ajayrobbins@hotmail.com",
+  "files": {
+    "company_tickers.json": "https://www.sec.gov/files/company_tickers.json"
+  },
+  "companies": {
+    "FORM": {
+      "cik": "0001039399",
+      "entity_name": "FormFactor,\u00a0Inc.",
+      "file": "companyfacts_FORM_CIK0001039399.json",
+      "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001039399.json",
+      "bytes": 3515678
+    }
+  }
+}
