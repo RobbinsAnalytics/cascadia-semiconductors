@@ -46,6 +46,7 @@ from conform import (FILED_METRICS, NON_ADDITIVE_METRICS, collect_periods,
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = REPO_ROOT / "data" / "conformed" / "fact_financials_quarterly.csv"
+SEG_CSV_PATH = REPO_ROOT / "data" / "conformed" / "fact_segments_quarterly.csv"
 REPORT_PATH = REPO_ROOT / "governance" / "validation_report.md"
 MANIFEST = REPO_ROOT / "data" / "raw" / "manifest.json"
 
@@ -126,6 +127,86 @@ def check_gaps(results):
                     not bad, f"{len(rows)} rows scanned; {n_missing} flagged missing", bad))
 
 
+# ---------------------------------------------------------------------------
+# Phase B — segment checks (skipped cleanly if the segment CSV is absent)
+# ---------------------------------------------------------------------------
+
+def load_segments():
+    """Return segment rows indexed by (segment, metric) -> {period: value_float}."""
+    rows = list(csv.DictReader(open(SEG_CSV_PATH, encoding="utf-8")))
+    by = defaultdict(dict)
+    for r in rows:
+        if r["value"] != "" and r["missing"] != "True":
+            by[(r["segment_code"], r["metric_code"])][r["fiscal_period"]] = float(r["value"])
+    return rows, by
+
+
+def check_segment_revenue(results):
+    """Check 6: Probe Cards + Systems revenue == consolidated revenue, every quarter.
+
+    This is the correctness gate for the dimensional segment pull: if a segment
+    revenue fact were mis-extracted (wrong axis, double count, unit slip), the
+    two would stop tying. USD tolerance ($2,000) applies — filings are exact.
+    """
+    _, by_metric = load_conformed()
+    _, seg = load_segments()
+    cons = {p: float(r["value"]) for p, r in by_metric["revenue"].items()
+            if r["value"] != "" and r["missing"] != "True"}
+    probe, systems = seg[("probe_cards", "seg_revenue")], seg[("systems", "seg_revenue")]
+    failures, checked = [], 0
+    for period, total in sorted(cons.items()):
+        if period not in probe or period not in systems:
+            failures.append(f"{period}: missing a segment revenue value")
+            continue
+        checked += 1
+        diff = probe[period] + systems[period] - total
+        if abs(diff) > USD_TOLERANCE:
+            failures.append(f"{period}: segment revenue sum − consolidated = {diff:,.0f}")
+    results.append(("Segment revenue reconciles to consolidated revenue",
+                    not failures, f"{checked} quarters reconciled", failures))
+
+
+def check_segment_gp_bridge(results):
+    """Check 7: segment gross-profit bridge closes to consolidated GAAP GP.
+
+    Where FormFactor files the reconciling line (FY2024+, ASU 2023-07):
+        ProbeCards GP + Systems GP + Corporate/unallocated GP == consolidated GP.
+    We check ONLY periods that carry all three filed segment gross-profit values
+    (the reconcilable window); earlier periods have no tagged reconciling item
+    and are deliberately not asserted (and not shown on the page).
+    """
+    _, by_metric = load_conformed()
+    _, seg = load_segments()
+    cons_gp = {p: float(r["value"]) for p, r in by_metric["gross_profit"].items()
+               if r["value"] != "" and r["missing"] != "True"}
+    probe = seg[("probe_cards", "seg_gross_profit")]
+    systems = seg[("systems", "seg_gross_profit")]
+    corp = seg[("corporate_unallocated", "seg_gross_profit")]
+    failures, checked = [], 0
+    for period in sorted(corp):                    # gated: only reconcilable periods
+        if period not in probe or period not in systems or period not in cons_gp:
+            failures.append(f"{period}: incomplete gross-profit bridge inputs")
+            continue
+        checked += 1
+        diff = probe[period] + systems[period] + corp[period] - cons_gp[period]
+        if abs(diff) > USD_TOLERANCE:
+            failures.append(f"{period}: segment GP bridge − consolidated GP = {diff:,.0f}")
+    results.append(("Segment gross-profit bridge (Probe+Systems+Corporate = consolidated GP)",
+                    not failures, f"{checked} reconcilable quarters checked", failures))
+
+
+def check_segment_gaps(results):
+    """Check 8: no silent gaps in the segment grid (missing is always flagged)."""
+    rows, _ = load_segments()
+    all_rows = list(csv.DictReader(open(SEG_CSV_PATH, encoding="utf-8")))
+    bad = [f"{r['segment_code']}/{r['metric_code']} {r['fiscal_period']}"
+           for r in all_rows if r["value"] == "" and r["missing"] != "True"]
+    n_missing = sum(1 for r in all_rows if r["missing"] == "True")
+    results.append(("Segment gap audit (missing is flagged, never silent)",
+                    not bad, f"{len(all_rows)} segment rows scanned; "
+                    f"{n_missing} flagged missing", bad))
+
+
 def enumerate_flags():
     """Check 4 (informational): list every derived / restated row."""
     rows, _ = load_conformed()
@@ -156,6 +237,12 @@ def main() -> None:
     check_fy_reconciliation(results)
     check_crossfoot(results)
     check_gaps(results)
+    # Phase B segment checks — only if the segment CSV has been built.
+    has_segments = SEG_CSV_PATH.exists()
+    if has_segments:
+        check_segment_revenue(results)
+        check_segment_gp_bridge(results)
+        check_segment_gaps(results)
     derived, restated = enumerate_flags()
     spots = spot_check_table()
 
@@ -219,6 +306,31 @@ def main() -> None:
                f"{r['filed']} ({r['source_form']}) |" for r in restated]
     else:
         md.append("None detected.")
+
+    if has_segments:
+        _, seg = load_segments()
+        rev_periods = sorted(seg[("probe_cards", "seg_revenue")])
+        gp_periods = sorted(seg[("corporate_unallocated", "seg_gross_profit")])
+        md += [
+            "",
+            "## Segment data (Phase B — Probe Cards vs Systems)",
+            "",
+            "Segment facts are DIMENSIONAL XBRL, absent from the `companyfacts`",
+            "snapshot; they were pulled once from the filing XBRL instances by",
+            "`src/ingest_segments.py` (a freeze extension at the same as-of date) and",
+            "conformed by `src/conform_segments.py`.",
+            "",
+            f"- **Segment revenue** is available and reconciles to consolidated revenue "
+            f"for **all {len(rev_periods)} quarters** ({rev_periods[0]}–{rev_periods[-1]}).",
+            f"- **Segment gross profit / margin** is emitted only where FormFactor files "
+            f"the CorporateNonSegment reconciling line so the bridge closes exactly to "
+            f"consolidated GAAP gross profit — **{len(gp_periods)} quarters** "
+            f"({gp_periods[0]}–{gp_periods[-1]}, FASB ASU 2023-07 onward). Earlier "
+            f"periods carry no tagged reconciling item and are flagged missing "
+            f"(\"not reconcilable from tagged XBRL\"), never estimated.",
+            "- **Segment operating income** is not disclosed (operating expenses are "
+            "largely unallocated) and is not produced.",
+        ]
 
     md += [
         "",

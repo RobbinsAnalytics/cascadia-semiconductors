@@ -11,6 +11,9 @@
 | 1 | Q4 / full-year reconciliation | PASS | 64 metric-years reconciled |
 | 2 | Cross-foot (GP − Opex + Divestiture Gains = Operating Income) | PASS | 33 quarters checked |
 | 3 | Gap audit (missing is flagged, never silent) | PASS | 363 rows scanned; 0 flagged missing |
+| 4 | Segment revenue reconciles to consolidated revenue | PASS | 33 quarters reconciled |
+| 5 | Segment gross-profit bridge (Probe+Systems+Corporate = consolidated GP) | PASS | 9 reconcilable quarters checked |
+| 6 | Segment gap audit (missing is flagged, never silent) | PASS | 207 segment rows scanned; 96 flagged missing |
 
 ## Spot-check table (verify against FormFactor GAAP press-release figures)
 
@@ -49,6 +52,17 @@ strictly additive when share counts move between quarters.
 | Metric | Period | Value kept | Filed |
 |--------|--------|-----------|-------|
 | sgna_expense | 2018Q4 | 25,828,000 | 2020-02-21 (10-K) |
+
+## Segment data (Phase B — Probe Cards vs Systems)
+
+Segment facts are DIMENSIONAL XBRL, absent from the `companyfacts`
+snapshot; they were pulled once from the filing XBRL instances by
+`src/ingest_segments.py` (a freeze extension at the same as-of date) and
+conformed by `src/conform_segments.py`.
+
+- **Segment revenue** is available and reconciles to consolidated revenue for **all 33 quarters** (2018Q1–2026Q1).
+- **Segment gross profit / margin** is emitted only where FormFactor files the CorporateNonSegment reconciling line so the bridge closes exactly to consolidated GAAP gross profit — **9 quarters** (2024Q1–2026Q1, FASB ASU 2023-07 onward). Earlier periods carry no tagged reconciling item and are flagged missing ("not reconcilable from tagged XBRL"), never estimated.
+- **Segment operating income** is not disclosed (operating expenses are largely unallocated) and is not produced.
 
 ---
 *GAAP per XBRL filings; company headline figures may be non-GAAP.

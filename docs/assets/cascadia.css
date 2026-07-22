@@ -51,6 +51,8 @@ body {
 .kicker a:hover { text-decoration: underline; }
 h1 { font-size: clamp(22px, 4.5vw, 30px); margin: 0 0 6px; font-weight: 650; }
 .subtitle { color: var(--ink-2); margin: 0 0 10px; max-width: 62ch; }
+.subtitle a, .chart-sub a { color: var(--s1); text-decoration: none; }
+.subtitle a:hover, .chart-sub a:hover { text-decoration: underline; }
 .asof {
   display: inline-block; font-size: 12.5px; color: var(--ink-2);
   background: var(--surface); border: 1px solid var(--ring);
@@ -104,6 +106,11 @@ h2 {
 .chart-card {
   background: var(--surface); border: 1px solid var(--ring);
   border-radius: 10px; padding: 14px 12px 6px;
+  /* min-width:0 lets a grid/flex item shrink below its content's intrinsic
+     width — without it the fixed-size ECharts canvas holds the card open and
+     the page scrolls sideways on phones. The ResizeObserver then resizes the
+     chart down to the narrower container. */
+  min-width: 0;
 }
 .chart-card h3 { font-size: 14px; font-weight: 650; margin: 0 0 0 8px; }
 .chart-card .chart-sub { font-size: 12px; color: var(--muted); margin: 1px 0 4px 8px; }
