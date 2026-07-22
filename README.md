@@ -64,9 +64,9 @@ python src/build_pages.py       # tidy CSVs -> docs/ JSON + inline data injectio
 
 `python src/ingest.py` re-pulls the consolidated `companyfacts` bundle from SEC
 and **overwrites the freeze** — only run it to deliberately refresh the dataset.
-`python src/ingest_segments.py` is the Phase B **freeze extension**: it pulls the
+`python src/ingest_segments.py` is the Phase 2 **freeze extension**: it pulls the
 dimensional segment facts (absent from `companyfacts`) from the individual filing
-XBRL instances, at the same as-of date, and never touches the Phase A series.
+XBRL instances, at the same as-of date, and never touches the Phase 1 series.
 
 ## Data citation
 
@@ -78,17 +78,17 @@ public domain; repository code is MIT-licensed (see `LICENSE`).
 
 ## Phases
 
-- **Phase A (live):** FormFactor executive financial pack — GAAP revenue,
+- **Phase 1 (live):** FormFactor executive financial pack — GAAP revenue,
   gross margin, opex, operating income, diluted EPS, FY2018 → Q1 FY2026, with
   QoQ/YoY variances. → [`docs/index.html`](docs/index.html)
-- **Phase B (live):** GAAP gross-margin walk (trend + revenue/margin
+- **Phase 2 (live):** GAAP gross-margin walk (trend + revenue/margin
   decomposition) and the Probe Cards vs Systems segment view, built from
   dimensional segment XBRL pulled from the filing instances. Segment revenue
   reconciles to consolidated revenue every quarter; segment gross margin is shown
   only where FormFactor files the reconciling line (FASB ASU 2023-07, FY2024+) so
   it ties to consolidated GAAP gross profit exactly — earlier periods are flagged
   "not reconcilable," never estimated. → [`docs/margins.html`](docs/margins.html)
-- **Phase C (planned):** US-listed test & measurement peer benchmark (TER,
+- **Phase 3 (planned):** US-listed test & measurement peer benchmark (TER,
   ONTO, CAMT, COHU, INTT, plus KLAC as the process-control margin reference).
   Honest scope note: FormFactor's closest probe-card competitors (Technoprobe,
   Micronics Japan, JEM) don't file with the SEC, so this is a US-listed peer
