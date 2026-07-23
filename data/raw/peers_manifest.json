@@ -1,0 +1,51 @@
+{
+  "as_of_date": "2026-07-21",
+  "retrieval_date": "2026-07-22",
+  "note": "Additive Phase 3 extension of the 2026-07-21 freeze. Peer companyfacts pulled after the FORM snapshot; the benchmark never shows a peer quarter later than FORM's frozen latest, so the later pull cannot leak newer data.",
+  "source": "SEC EDGAR XBRL APIs (https://data.sec.gov/)",
+  "user_agent": "RobbinsAnalytics cascadia-semiconductors ajayrobbins@hotmail.com",
+  "companies": {
+    "TER": {
+      "cik": "0000097210",
+      "entity_name": "TERADYNE, INC.",
+      "file": "companyfacts_TER_CIK0000097210.json",
+      "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000097210.json",
+      "bytes": 5037704
+    },
+    "ONTO": {
+      "cik": "0000704532",
+      "entity_name": "ONTO INNOVATION INC.",
+      "file": "companyfacts_ONTO_CIK0000704532.json",
+      "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000704532.json",
+      "bytes": 3134860
+    },
+    "CAMT": {
+      "cik": "0001109138",
+      "entity_name": "Camtek Ltd.",
+      "file": "companyfacts_CAMT_CIK0001109138.json",
+      "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001109138.json",
+      "bytes": 1596985
+    },
+    "COHU": {
+      "cik": "0000021535",
+      "entity_name": "COHU INC",
+      "file": "companyfacts_COHU_CIK0000021535.json",
+      "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000021535.json",
+      "bytes": 3716238
+    },
+    "INTT": {
+      "cik": "0001036262",
+      "entity_name": "InTest Corporation",
+      "file": "companyfacts_INTT_CIK0001036262.json",
+      "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001036262.json",
+      "bytes": 2947510
+    },
+    "KLAC": {
+      "cik": "0000319201",
+      "entity_name": "KLA CORPORATION",
+      "file": "companyfacts_KLAC_CIK0000319201.json",
+      "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000319201.json",
+      "bytes": 4804627
+    }
+  }
+}

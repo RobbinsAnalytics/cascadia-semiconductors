@@ -55,18 +55,21 @@ flowchart LR
 
 ```powershell
 pip install -r requirements.txt
-python src/conform.py           # raw JSON  -> tidy CSV + tag map
+python src/conform.py           # FORM raw JSON  -> tidy CSV + tag map
 python src/conform_segments.py  # segment raw JSON -> segment CSV (+ appends tag map; run AFTER conform.py)
-python src/build_db.py          # tidy CSVs -> SQLite star schema (+ dim_segment / fact_segment_quarterly)
+python src/conform_peers.py     # peer raw JSON -> peer CSV (+ appends tag map; run AFTER conform.py)
+python src/build_db.py          # tidy CSVs -> SQLite star schema (dim_segment, dim_company peers, peer/segment facts)
 python src/validate.py          # checks    -> governance/validation_report.md (exit 1 on failure)
-python src/build_pages.py       # tidy CSVs -> docs/ JSON + inline data injection (index.html + margins.html)
+python src/build_pages.py       # tidy CSVs -> docs/ JSON + inline data injection (index / margins / peers .html)
 ```
 
 `python src/ingest.py` re-pulls the consolidated `companyfacts` bundle from SEC
 and **overwrites the freeze** — only run it to deliberately refresh the dataset.
-`python src/ingest_segments.py` is the Phase 2 **freeze extension**: it pulls the
-dimensional segment facts (absent from `companyfacts`) from the individual filing
-XBRL instances, at the same as-of date, and never touches the Phase 1 series.
+Two Phase 2/3 **freeze extensions** add data additively without touching the
+Phase 1 series: `python src/ingest_segments.py` pulls the dimensional segment
+facts (absent from `companyfacts`) from FORM's filing XBRL instances, and
+`python src/ingest_peers.py` pulls the six peer `companyfacts` bundles — both at
+the same displayed as-of date, with the actual retrieval date recorded.
 
 ## Data citation
 
@@ -88,11 +91,15 @@ public domain; repository code is MIT-licensed (see `LICENSE`).
   only where FormFactor files the reconciling line (FASB ASU 2023-07, FY2024+) so
   it ties to consolidated GAAP gross profit exactly — earlier periods are flagged
   "not reconcilable," never estimated. → [`docs/margins.html`](docs/margins.html)
-- **Phase 3 (planned):** US-listed test & measurement peer benchmark (TER,
-  ONTO, CAMT, COHU, INTT, plus KLAC as the process-control margin reference).
-  Honest scope note: FormFactor's closest probe-card competitors (Technoprobe,
-  Micronics Japan, JEM) don't file with the SEC, so this is a US-listed peer
-  set, not a pure probe-card comp group.
+- **Phase 3 (live):** US-listed test & measurement peer benchmark (TER, ONTO,
+  CAMT, COHU, INTT, plus KLAC as the process-control margin reference) — GAAP
+  revenue scale, gross/operating margin, R&D intensity, and revenue growth, with
+  the XBRL tag-mapping shown on the page. The governance point is front and
+  centre: peers tag GAAP concepts inconsistently (Camtek files no quarterly GAAP;
+  KLA and Cohu don't tag every margin), and those gaps are shown as gaps, never
+  estimated. Honest scope note: FormFactor's closest probe-card competitors
+  (Technoprobe, Micronics Japan, JEM) don't file with the SEC, so this is a
+  US-listed peer set, not a pure probe-card comp group. → [`docs/peers.html`](docs/peers.html)
 
 ---
 

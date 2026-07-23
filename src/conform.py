@@ -49,12 +49,20 @@ FILED_METRICS = {
     # metric_code: (label, unit, [tag priority list])
     "revenue": (
         "Revenue (GAAP)", "USD",
-        ["RevenueFromContractWithCustomerExcludingAssessedTax",  # ASC 606, FY2018→
+        # Priority list absorbs cross-company tag drift (Phase 3 peers). FORM uses
+        # the ASC 606 "Excluding assessed tax" tag (priority 0), so FORM is
+        # unaffected by the lower-priority fallbacks added for peers.
+        ["RevenueFromContractWithCustomerExcludingAssessedTax",  # ASC 606 — FORM, TER, ONTO, KLAC
+         "RevenueFromContractWithCustomerIncludingAssessedTax",  # ASC 606 gross-of-tax — COHU, INTT
          "SalesRevenueNet",                                      # pre-ASC 606
          "Revenues"],                                            # rare transitional
     ),
     "gross_profit": ("Gross Profit (GAAP)", "USD", ["GrossProfit"]),
-    "rnd_expense": ("R&D Expense (GAAP)", "USD", ["ResearchAndDevelopmentExpense"]),
+    "rnd_expense": (
+        "R&D Expense (GAAP)", "USD",
+        ["ResearchAndDevelopmentExpense",                            # FORM and most peers
+         "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"],  # Teradyne (TER)
+    ),
     "sgna_expense": ("SG&A Expense (GAAP)", "USD", ["SellingGeneralAndAdministrativeExpense"]),
     "opex_total": ("Total Operating Expenses (GAAP)", "USD", ["OperatingExpenses"]),
     "operating_income": ("Operating Income (GAAP)", "USD", ["OperatingIncomeLoss"]),

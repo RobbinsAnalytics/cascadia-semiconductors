@@ -1,9 +1,11 @@
 ticker,metric_code,metric_label,xbrl_tag,role,notes,as_of_date
 FORM,revenue,Revenue (GAAP),RevenueFromContractWithCustomerExcludingAssessedTax,primary,ASC 606 tag; covers FY2018 onward for FORM,2026-07-21
-FORM,revenue,Revenue (GAAP),SalesRevenueNet,fallback_1,pre-ASC 606 tag used by FORM through FY2018 transition,2026-07-21
-FORM,revenue,Revenue (GAAP),Revenues,fallback_2,,2026-07-21
+FORM,revenue,Revenue (GAAP),RevenueFromContractWithCustomerIncludingAssessedTax,fallback_1,,2026-07-21
+FORM,revenue,Revenue (GAAP),SalesRevenueNet,fallback_2,pre-ASC 606 tag used by FORM through FY2018 transition,2026-07-21
+FORM,revenue,Revenue (GAAP),Revenues,fallback_3,,2026-07-21
 FORM,gross_profit,Gross Profit (GAAP),GrossProfit,primary,,2026-07-21
 FORM,rnd_expense,R&D Expense (GAAP),ResearchAndDevelopmentExpense,primary,,2026-07-21
+FORM,rnd_expense,R&D Expense (GAAP),ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost,fallback_1,,2026-07-21
 FORM,sgna_expense,SG&A Expense (GAAP),SellingGeneralAndAdministrativeExpense,primary,,2026-07-21
 FORM,opex_total,Total Operating Expenses (GAAP),OperatingExpenses,primary,,2026-07-21
 FORM,operating_income,Operating Income (GAAP),OperatingIncomeLoss,primary,,2026-07-21
@@ -15,3 +17,28 @@ FORM,operating_margin_pct,Operating Margin % (GAAP),computed: operating_income /
 FORM,seg_revenue,Segment Revenue (GAAP),RevenueFromContractWithCustomerExcludingAssessedTax,primary_segment,segment-dimensioned fact (us-gaap:StatementBusinessSegmentsAxis); reconciles to consolidated revenue,2026-07-21
 FORM,seg_gross_profit,Segment Gross Profit (segment measure),GrossProfit,primary_segment,segment measure of profit; EXCLUDES unallocated COGS — does NOT sum to consolidated GAAP gross profit,2026-07-21
 FORM,seg_gross_margin_pct,Segment Gross Margin % (segment measure),computed: seg_gross_profit / seg_revenue,computed_segment,ratio computed from conformed segment metrics,2026-07-21
+CAMT,revenue,Revenue (GAAP),Revenues,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+CAMT,gross_profit,Gross Profit (GAAP),GrossProfit,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+CAMT,operating_income,Operating Income (GAAP),OperatingIncomeLoss,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+CAMT,rnd_expense,R&D Expense (GAAP),ResearchAndDevelopmentExpense,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+COHU,revenue,Revenue (GAAP),RevenueFromContractWithCustomerIncludingAssessedTax,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+COHU,gross_profit,Gross Profit (GAAP),(not comparably tagged),peer_missing,no comparable us-gaap quarterly tag filed,2026-07-21
+COHU,operating_income,Operating Income (GAAP),OperatingIncomeLoss,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+COHU,rnd_expense,R&D Expense (GAAP),ResearchAndDevelopmentExpense,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+INTT,revenue,Revenue (GAAP),RevenueFromContractWithCustomerIncludingAssessedTax,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+INTT,gross_profit,Gross Profit (GAAP),GrossProfit,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+INTT,operating_income,Operating Income (GAAP),OperatingIncomeLoss,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+INTT,rnd_expense,R&D Expense (GAAP),ResearchAndDevelopmentExpense,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+KLAC,revenue,Revenue (GAAP),RevenueFromContractWithCustomerExcludingAssessedTax,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+KLAC,gross_profit,Gross Profit (GAAP),GrossProfit,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+KLAC,operating_income,Operating Income (GAAP),(not comparably tagged),peer_missing,no comparable us-gaap quarterly tag filed,2026-07-21
+KLAC,rnd_expense,R&D Expense (GAAP),ResearchAndDevelopmentExpense,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+ONTO,revenue,Revenue (GAAP),RevenueFromContractWithCustomerExcludingAssessedTax,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+ONTO,gross_profit,Gross Profit (GAAP),GrossProfit,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+ONTO,operating_income,Operating Income (GAAP),OperatingIncomeLoss,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+ONTO,rnd_expense,R&D Expense (GAAP),ResearchAndDevelopmentExpense,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+TER,revenue,Revenue (GAAP),RevenueFromContractWithCustomerExcludingAssessedTax,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+TER,revenue,Revenue (GAAP),Revenues,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+TER,gross_profit,Gross Profit (GAAP),GrossProfit,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+TER,operating_income,Operating Income (GAAP),OperatingIncomeLoss,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21
+TER,rnd_expense,R&D Expense (GAAP),ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost,peer_filed,winning us-gaap tag for this peer/metric,2026-07-21

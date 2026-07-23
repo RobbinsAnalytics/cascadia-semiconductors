@@ -126,6 +126,9 @@ h2 {
 .method ul { padding-left: 1.2em; }
 .method li { margin: 7px 0; max-width: 88ch; }
 .method a { color: var(--s1); }
+/* Long XBRL tag names in <code> are single unbroken tokens; let them wrap so
+   they never force horizontal scroll on a phone. */
+.method code { overflow-wrap: anywhere; }
 .disclosure {
   margin: 26px 0 0; padding-top: 16px; border-top: 1px solid var(--grid);
   font-size: 12.5px; color: var(--muted); max-width: 88ch;

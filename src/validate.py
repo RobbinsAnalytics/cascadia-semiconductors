@@ -47,6 +47,7 @@ from conform import (FILED_METRICS, NON_ADDITIVE_METRICS, collect_periods,
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = REPO_ROOT / "data" / "conformed" / "fact_financials_quarterly.csv"
 SEG_CSV_PATH = REPO_ROOT / "data" / "conformed" / "fact_segments_quarterly.csv"
+PEERS_CSV_PATH = REPO_ROOT / "data" / "conformed" / "fact_peers_quarterly.csv"
 REPORT_PATH = REPO_ROOT / "governance" / "validation_report.md"
 MANIFEST = REPO_ROOT / "data" / "raw" / "manifest.json"
 
@@ -207,6 +208,64 @@ def check_segment_gaps(results):
                     f"{n_missing} flagged missing", bad))
 
 
+# ---------------------------------------------------------------------------
+# Phase C — peer-benchmark checks (skipped cleanly if the peer CSV is absent)
+# ---------------------------------------------------------------------------
+
+# The concepts the benchmark compares; each peer must reconcile these to its own
+# filings exactly the way FORM does (that is the correctness gate on the pull).
+PEER_BENCHMARK_METRICS = ["revenue", "gross_profit", "operating_income", "rnd_expense"]
+
+
+def load_peers():
+    rows = list(csv.DictReader(open(PEERS_CSV_PATH, encoding="utf-8")))
+    by = defaultdict(dict)
+    for r in rows:
+        by[(r["ticker"], r["metric_code"])][r["fiscal_period"]] = r
+    return rows, by
+
+
+def check_peer_reconciliation(results):
+    """Check 9: each peer's quarters sum to its own filed full-year value.
+
+    Same identity as check 1, run per peer against the peer's own companyfacts —
+    so a mis-extracted peer quarter (wrong tag, wrong scale, double count) is
+    caught. Metrics a peer doesn't file are simply absent and skipped.
+    """
+    rows, by = load_peers()
+    peers = sorted({r["ticker"] for r in rows})
+    failures, checked = [], 0
+    for tk in peers:
+        facts = load_companyfacts(tk)["facts"]["us-gaap"]
+        for code in PEER_BENCHMARK_METRICS:
+            _, unit, tags = FILED_METRICS[code]
+            try:
+                _, years = collect_periods(facts, tags, unit)
+            except ValueError:
+                continue                       # out-of-tolerance calendar — skip, not our metric
+            for year, fy in sorted(years.items()):
+                quarters = [by[(tk, code)].get(f"{year}Q{q}") for q in (1, 2, 3, 4)]
+                if any(q is None or q["missing"] == "True" for q in quarters):
+                    continue
+                qsum = sum(float(q["value"]) for q in quarters)
+                checked += 1
+                if abs(qsum - fy["value"]) > USD_TOLERANCE:
+                    failures.append(f"{tk} {code} FY{year}: quarters {qsum:,.0f} "
+                                    f"vs FY filed {fy['value']:,.0f}")
+    results.append(("Peer FY reconciliation (each peer's quarters sum to its filed FY)",
+                    not failures, f"{checked} peer metric-years reconciled", failures))
+
+
+def check_peer_gaps(results):
+    """Check 10: no silent gaps — every peer grid cell is a value or flagged."""
+    rows, _ = load_peers()
+    bad = [f"{r['ticker']}/{r['metric_code']} {r['fiscal_period']}"
+           for r in rows if r["value"] == "" and r["missing"] != "True"]
+    n_missing = sum(1 for r in rows if r["missing"] == "True")
+    results.append(("Peer gap audit (missing / not-comparable is flagged, never silent)",
+                    not bad, f"{len(rows)} peer rows scanned; {n_missing} flagged missing", bad))
+
+
 def enumerate_flags():
     """Check 4 (informational): list every derived / restated row."""
     rows, _ = load_conformed()
@@ -243,6 +302,11 @@ def main() -> None:
         check_segment_revenue(results)
         check_segment_gp_bridge(results)
         check_segment_gaps(results)
+    # Phase C peer checks — only if the peer CSV has been built.
+    has_peers = PEERS_CSV_PATH.exists()
+    if has_peers:
+        check_peer_reconciliation(results)
+        check_peer_gaps(results)
     derived, restated = enumerate_flags()
     spots = spot_check_table()
 
@@ -330,6 +394,61 @@ def main() -> None:
             f"(\"not reconcilable from tagged XBRL\"), never estimated.",
             "- **Segment operating income** is not disclosed (operating expenses are "
             "largely unallocated) and is not produced.",
+        ]
+
+    if has_peers:
+        peers_manifest = json.loads((REPO_ROOT / "data" / "raw" / "peers_manifest.json").read_text())
+        retrieved = peers_manifest.get("retrieval_date", "?")
+        _, by_metric = load_conformed()
+        prows, pby = load_peers()
+        # snapshot = FORM's frozen latest quarter (the benchmark anchor/cap)
+        snap = max(p for p, r in by_metric["revenue"].items()
+                   if r["value"] != "" and r["missing"] != "True")
+        companies = ["FORM"] + sorted({r["ticker"] for r in prows})
+
+        def cell(tk, metric, period):
+            row = (by_metric.get(metric, {}) if tk == "FORM"
+                   else pby.get((tk, metric), {})).get(period)
+            return row if row and row["value"] != "" and row["missing"] != "True" else None
+
+        def has(tk, metric, period):
+            return cell(tk, metric, period) is not None
+
+        def growth(tk, period):
+            row = cell(tk, "revenue", period)
+            return bool(row) and row["yoy_pct"] != ""
+
+        md += [
+            "",
+            "## Peer benchmark (Phase 3 — US-listed T&M peers)",
+            "",
+            f"Peer `companyfacts` bundles were pulled by `src/ingest_peers.py` as an ADDITIVE",
+            f"extension of the {as_of} freeze; **actual retrieval date {retrieved}**. The",
+            f"benchmark never shows a peer quarter later than FORM's frozen latest "
+            f"(**{snap}**), so the later pull cannot leak newer data. Peers are conformed",
+            "with the same rules as FORM (`src/conform_peers.py`).",
+            "",
+            f"**Snapshot quarter for the ranked comparison: {snap}.** Availability of each",
+            "comparison metric at the snapshot (Y = filed & comparably tagged, — = not):",
+            "",
+            "| Company | Revenue | Gross margin | Op. margin | R&D % | Rev. growth |",
+            "|---------|:-------:|:------------:|:----------:|:-----:|:-----------:|",
+        ]
+        yn = lambda b: "Y" if b else "—"
+        for tk in companies:
+            md.append(f"| {tk} | {yn(has(tk,'revenue',snap))} | {yn(has(tk,'gross_margin_pct',snap))} "
+                      f"| {yn(has(tk,'operating_margin_pct',snap))} | {yn(has(tk,'rnd_expense',snap))} "
+                      f"| {yn(growth(tk,snap))} |")
+        md += [
+            "",
+            "**Not comparable at the snapshot (flagged, never estimated):**",
+            "- **CAMT (Camtek)** — foreign private issuer; files Form 20-F/6-K, not 10-Q/10-K. "
+            "No recent quarterly GAAP XBRL, so it is excluded from every quarterly ranking.",
+            "- **KLAC (KLA)** — tagged `GrossProfit` only through FY2021 Q2 and does not tag "
+            "`OperatingIncomeLoss` in-window (latest 2015), so gross and operating margin are not "
+            "comparable at the snapshot; shown on revenue scale, R&D %, and growth (it is a "
+            "process-control margin *reference*, not a direct comp).",
+            "- **COHU (Cohu)** — does not tag `GrossProfit` in-window; gross margin not comparable.",
         ]
 
     md += [

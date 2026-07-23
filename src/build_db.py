@@ -37,10 +37,13 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = REPO_ROOT / "data" / "conformed" / "fact_financials_quarterly.csv"
 SEG_CSV_PATH = REPO_ROOT / "data" / "conformed" / "fact_segments_quarterly.csv"
+PEERS_CSV_PATH = REPO_ROOT / "data" / "conformed" / "fact_peers_quarterly.csv"
 DB_PATH = REPO_ROOT / "data" / "cascadia_semi.db"
 MANIFEST = REPO_ROOT / "data" / "raw" / "manifest.json"
+PEERS_MANIFEST = REPO_ROOT / "data" / "raw" / "peers_manifest.json"
 
 DDL = """
+DROP TABLE IF EXISTS fact_peers_quarterly;
 DROP TABLE IF EXISTS fact_segment_quarterly;
 DROP TABLE IF EXISTS fact_financials_quarterly;
 DROP TABLE IF EXISTS dim_company;
@@ -121,6 +124,31 @@ CREATE TABLE fact_segment_quarterly (
     as_of_date    TEXT NOT NULL,
     PRIMARY KEY (company_key, segment_key, metric_key, date_key)
 );
+
+-- Phase C: the peer benchmark. Same grain as fact_financials_quarterly but for
+-- the peer companies (dim_company now holds FORM + 6 peers). Kept in its own
+-- table so FormFactor's frozen fact table stays untouched.
+CREATE TABLE fact_peers_quarterly (
+    company_key   INTEGER NOT NULL REFERENCES dim_company(company_key),
+    metric_key    INTEGER NOT NULL REFERENCES dim_metric(metric_key),
+    date_key      INTEGER NOT NULL REFERENCES dim_date(date_key),
+    value         REAL,                   -- NULL when missing / not comparably tagged
+    qoq_delta     REAL,
+    qoq_pct       REAL,
+    yoy_delta     REAL,
+    yoy_pct       REAL,
+    derived       INTEGER NOT NULL,
+    restated      INTEGER NOT NULL,
+    missing       INTEGER NOT NULL,
+    period_start  TEXT,
+    period_end    TEXT,
+    xbrl_tag      TEXT,
+    source_form   TEXT,
+    accn          TEXT,
+    filed         TEXT,
+    as_of_date    TEXT NOT NULL,
+    PRIMARY KEY (company_key, metric_key, date_key)
+);
 """
 
 
@@ -148,24 +176,30 @@ def fact_values(r, company_key, metric_key, date_key, extra_key=None):
 def main() -> None:
     manifest = json.loads(MANIFEST.read_text())
     rows = list(csv.DictReader(open(CSV_PATH, encoding="utf-8")))
-    # Phase B segment rows are optional — the DB still builds without them.
+    # Phase B / C rows are optional — the DB still builds without them.
     seg_rows = list(csv.DictReader(open(SEG_CSV_PATH, encoding="utf-8"))) \
         if SEG_CSV_PATH.exists() else []
+    peer_rows = list(csv.DictReader(open(PEERS_CSV_PATH, encoding="utf-8"))) \
+        if PEERS_CSV_PATH.exists() else []
+    # CIK lookup spans FORM's manifest + the peers manifest (never guessed).
+    cik_of = dict(manifest["companies"])
+    if PEERS_MANIFEST.exists():
+        cik_of.update(json.loads(PEERS_MANIFEST.read_text())["companies"])
 
     con = sqlite3.connect(DB_PATH)
     con.executescript(DDL)
 
     # --- dimensions, keyed deterministically from the conformed data -------
     companies = {}
-    for r in rows:
+    for r in rows + peer_rows:                     # FORM first, then the 6 peers
         if r["ticker"] not in companies:
-            cik = manifest["companies"][r["ticker"]]["cik"]
+            cik = cik_of[r["ticker"]]["cik"]
             companies[r["ticker"]] = (len(companies) + 1, r["ticker"], cik, r["company"])
     con.executemany("INSERT INTO dim_company VALUES (?,?,?,?)", companies.values())
 
-    # dim_metric spans BOTH the consolidated and segment metric vocabularies.
+    # dim_metric spans the consolidated, segment, and peer metric vocabularies.
     metrics = {}
-    for r in rows + seg_rows:
+    for r in rows + seg_rows + peer_rows:
         if r["metric_code"] not in metrics:
             metrics[r["metric_code"]] = (len(metrics) + 1, r["metric_code"],
                                          r["metric_label"], r["unit"],
@@ -200,10 +234,17 @@ def main() -> None:
                      dates[r["fiscal_period"]][0], extra_key=segments[r["segment_code"]][0])
          for r in seg_rows])
 
+    # --- peer fact table (Phase C) ----------------------------------------
+    con.executemany(
+        "INSERT INTO fact_peers_quarterly VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [fact_values(r, companies[r["ticker"]][0], metrics[r["metric_code"]][0],
+                     dates[r["fiscal_period"]][0]) for r in peer_rows])
+
     con.commit()
     counts = {t: con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
               for t in ("dim_company", "dim_metric", "dim_date", "dim_segment",
-                        "fact_financials_quarterly", "fact_segment_quarterly")}
+                        "fact_financials_quarterly", "fact_segment_quarterly",
+                        "fact_peers_quarterly")}
     con.close()
     print(f"Wrote {DB_PATH}")
     for t, n in counts.items():

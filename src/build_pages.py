@@ -28,11 +28,23 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = REPO_ROOT / "data" / "conformed" / "fact_financials_quarterly.csv"
 SEG_CSV_PATH = REPO_ROOT / "data" / "conformed" / "fact_segments_quarterly.csv"
+PEERS_CSV_PATH = REPO_ROOT / "data" / "conformed" / "fact_peers_quarterly.csv"
+PEERS_MANIFEST = REPO_ROOT / "data" / "raw" / "peers_manifest.json"
 DOCS_DIR = REPO_ROOT / "docs"
 JSON_OUT = DOCS_DIR / "data" / "form_quarterly.json"
 SEG_JSON_OUT = DOCS_DIR / "data" / "form_segments_quarterly.json"
+PEERS_JSON_OUT = DOCS_DIR / "data" / "peers_quarterly.json"
 INDEX_PAGE = DOCS_DIR / "index.html"       # Phase A — consolidated only
 MARGINS_PAGE = DOCS_DIR / "margins.html"   # Phase B — consolidated + segments
+PEERS_PAGE = DOCS_DIR / "peers.html"       # Phase C — peer benchmark
+
+# Short display names + roles for the benchmark. FORM is the subject; KLA is a
+# margin reference (never ranked as a direct comp).
+PEER_DISPLAY = {"FORM": "FormFactor", "TER": "Teradyne", "ONTO": "Onto Innovation",
+                "CAMT": "Camtek", "COHU": "Cohu", "INTT": "inTEST", "KLAC": "KLA"}
+DIRECT_PEERS = ["TER", "ONTO", "CAMT", "COHU", "INTT"]
+REFERENCE = ["KLAC"]
+PEER_BENCHMARK_FILED = ["revenue", "gross_profit", "operating_income", "rnd_expense"]
 
 MARK_START = "<!--CASCADIA_DATA_START-->"
 MARK_END = "<!--CASCADIA_DATA_END-->"
@@ -135,6 +147,89 @@ def build_segment_payload() -> dict:
     }
 
 
+def build_peer_payload() -> dict:
+    """Package the peer benchmark (Phase 3) for peers.html.
+
+    Combines FormFactor (from the frozen Phase A conformed CSV) with the six
+    peers (conform_peers.py) into ONE company-keyed structure. For each company
+    we ship the five comparison metrics over the shared period axis — revenue
+    ($M) + YoY growth, gross margin %, operating margin %, and R&D % of revenue
+    (computed from filed R&D and revenue). Values a peer doesn't comparably tag
+    stay null. We also ship the winning XBRL tag per company × concept so the
+    page can render the governance tag-mapping table.
+    """
+    form_rows = list(csv.DictReader(open(CSV_PATH, encoding="utf-8")))
+    peer_rows = list(csv.DictReader(open(PEERS_CSV_PATH, encoding="utf-8")))
+    peers_manifest = json.loads(PEERS_MANIFEST.read_text())
+
+    by = defaultdict(dict)                        # (ticker, metric) -> {period: row}
+    for r in form_rows + peer_rows:
+        by[(r["ticker"], r["metric_code"])][r["fiscal_period"]] = r
+    periods = sorted({r["fiscal_period"] for r in form_rows})
+    idx = {p: i for i, p in enumerate(periods)}
+
+    def series(ticker, metric, field="value", scale=1.0):
+        out = [None] * len(periods)
+        for p, r in by.get((ticker, metric), {}).items():
+            v = r[field]
+            if v != "" and r["missing"] != "True":
+                out[idx[p]] = round(float(v) * scale, 4 if scale != 1 else 2)
+        return out
+
+    def rnd_ratio(ticker):
+        rev, rnd = by.get((ticker, "revenue"), {}), by.get((ticker, "rnd_expense"), {})
+        out = [None] * len(periods)
+        for p in periods:
+            rr, dr = rev.get(p), rnd.get(p)
+            if rr and dr and rr["missing"] != "True" and dr["missing"] != "True" \
+                    and rr["value"] and dr["value"] and float(rr["value"]):
+                out[idx[p]] = round(100.0 * float(dr["value"]) / float(rr["value"]), 2)
+        return out
+
+    def winning_tag(ticker, metric):
+        tags = {r["xbrl_tag"] for r in by.get((ticker, metric), {}).values()
+                if r["missing"] != "True" and r["xbrl_tag"]}
+        return sorted(tags) if tags else None
+
+    order = ["FORM"] + [t for t in peers_manifest["companies"]]   # FORM, then pull order
+    companies = {}
+    tagmap = []
+    for tk in order:
+        role = "subject" if tk == "FORM" else "reference" if tk in REFERENCE else "peer"
+        companies[tk] = {
+            "label": PEER_DISPLAY.get(tk, tk), "role": role,
+            "metrics": {
+                "revenue": {"values": series(tk, "revenue", scale=USD_TO_MILLIONS),
+                            "yoy_pct": series(tk, "revenue", field="yoy_pct")},
+                "gross_margin_pct": {"values": series(tk, "gross_margin_pct")},
+                "operating_margin_pct": {"values": series(tk, "operating_margin_pct")},
+                "rnd_ratio_pct": {"values": rnd_ratio(tk)},
+            },
+        }
+        for metric in PEER_BENCHMARK_FILED:
+            tags = winning_tag(tk, metric)
+            tagmap.append({"ticker": tk, "metric": metric,
+                           "tags": tags or ["(not comparably tagged)"],
+                           "comparable": tags is not None})
+
+    # snapshot = FORM's frozen latest quarter with a revenue value (the anchor/cap)
+    snapshot = max(p for p in periods
+                   if companies["FORM"]["metrics"]["revenue"]["values"][idx[p]] is not None)
+    return {
+        "as_of_date": form_rows[0]["as_of_date"],
+        "retrieval_date": peers_manifest.get("retrieval_date"),
+        "periods": periods, "snapshot": snapshot,
+        "companies": companies,
+        "direct_peers": DIRECT_PEERS, "reference": REFERENCE, "subject": "FORM",
+        "tagmap": tagmap,
+        "scope_note": ("US-listed test & measurement peer set. FormFactor's closest "
+                       "probe-card competitors (Technoprobe, Micronics Japan, JEM) don't "
+                       "file with the SEC, so this is a US-listed peer set, not a pure "
+                       "probe-card comp group. KLA is a process-control margin reference, "
+                       "not a direct comp."),
+    }
+
+
 def inject(page: Path, payload_json: str) -> None:
     html = page.read_text(encoding="utf-8")
     start, end = html.index(MARK_START), html.index(MARK_END)
@@ -164,6 +259,15 @@ def main() -> None:
         inject(MARGINS_PAGE, json.dumps(combined, separators=(",", ":")))
         print(f"Wrote {SEG_JSON_OUT} ({len(seg_payload['gm_window'])} reconcilable GM quarters)")
         print(f"Injected consolidated+segment data into {MARGINS_PAGE}")
+
+    # Phase C page: the peer benchmark (self-contained, FORM + 6 peers).
+    if PEERS_CSV_PATH.exists() and PEERS_PAGE.exists():
+        peer_payload = build_peer_payload()
+        PEERS_JSON_OUT.write_text(json.dumps(peer_payload, indent=1), encoding="utf-8")
+        inject(PEERS_PAGE, json.dumps(peer_payload, separators=(",", ":")))
+        print(f"Wrote {PEERS_JSON_OUT} (snapshot {peer_payload['snapshot']}, "
+              f"{len(peer_payload['companies'])} companies)")
+        print(f"Injected peer data into {PEERS_PAGE}")
 
 
 if __name__ == "__main__":
